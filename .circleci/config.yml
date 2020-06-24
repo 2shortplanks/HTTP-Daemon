@@ -9,8 +9,6 @@ orbs:
       build:
         description: |
           Builds and test the Perl distribution.
-          The
-          If there is a
         parameters:
           codecov:
             description: Should we enable code coverage reporting and upload reports to https://codecov.io/ ?
@@ -19,7 +17,7 @@ orbs:
           perl-version:
             description: The Perl version we want to do the build and test with
             type: string
-            default: "5.30"
+            default: "5.32"
           save-to-artifacts:
             description: Should the resulting build be saved to the artifacts for this pipeline?
             type: boolean
@@ -32,6 +30,13 @@ orbs:
           - image: perldocker/perl-tester:<< parameters.perl-version >>
         steps:
           - checkout
+          - when:
+              condition: << parameters.codecov >>
+              steps:
+                - run:
+                    name: Enable codecov.io code coverage reporting
+                    command: |
+                      echo 'export CODECOV_ENABLE=1' >> $BASH_ENV
           - run:
               name: Build and Test Distribution
               command: /usr/local/bin/auto-build-and-test-dist
@@ -49,26 +54,6 @@ orbs:
                 - persist_to_workspace:
                     root: .
                     paths: build_dir
-          - when:
-              condition: << parameters.codecov >>
-              steps:
-                - run:
-                    name: Run code coverage report and upload to codecov.io
-                    command: |
-                      cpanm -n Dist::Zilla::App::Command::cover
-                      dzil cover --report codecov
-          # this bit is experimental, please ignore
-          # it will go away soon when we move this logic into
-          - run:
-              name: Return tests with yath to get proper code reports
-              command: |
-                cpanm -n Test2::Harness::Renderer::JUnit
-                cd build_dir
-                mkdir -p /tmp/test-output/perl
-                JUNIT_TEST_FILE="/tmp/test-output/perl/results.xml" ALLOW_PASSING_TODOS=1 yath test --renderer=Formatter --renderer=JUnit t
-          - store_test_results:
-              path: /tmp/test-output
-
       test-linux:
         description:
           Rerun tests from a previous build cached in the workspace on a specific version of Perl running on Linux.
